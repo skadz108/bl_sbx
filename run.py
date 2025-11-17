@@ -75,6 +75,16 @@ def main_callback(service_provider: LockdownClient, dvt: DvtSecureSocketProxySer
     END
     WHERE local_path LIKE '/private/var/containers/Shared/SystemGroup/%/Documents/BLDatabaseManager/BLDatabaseManager.sqlite%'
     """)
+    cur.execute("""
+        UPDATE ZBLDOWNLOADINFO
+        SET ZASSETPATH = REPLACE(ZASSETPATH, 'REPLACEWITHDESTPATH', ?)
+        WHERE ZASSETPATH LIKE '%REPLACEWITHDESTPATH%';
+    """, (mg_file,))
+    cur.execute("""
+        UPDATE ZBLDOWNLOADINFO
+        SET ZDOWNLOADID = REPLACE(ZDOWNLOADID, 'REPLACEWITHDESTPATH', ?)
+        WHERE ZDOWNLOADID LIKE '%REPLACEWITHDESTPATH%';
+    """, (mg_file,))
     conn.commit()
     conn.close()
             
@@ -90,8 +100,8 @@ def main_callback(service_provider: LockdownClient, dvt: DvtSecureSocketProxySer
         pc.kill(pid_books)
     
     # Upload com.apple.MobileGestalt.plist
-    click.secho("Uploading com.apple.MobileGestalt.plist", fg="yellow")
-    remote_file = "com.apple.MobileGestalt.plist"
+    click.secho("Uploading input file", fg="yellow")
+    remote_file = "meow"
     AfcService(lockdown=service_provider).push(mg_file, remote_file)
     
     # Upload downloads.28.sqlitedb
@@ -132,8 +142,8 @@ def main_callback(service_provider: LockdownClient, dvt: DvtSecureSocketProxySer
         return
     
     click.secho("If this takes more than a minute please try again.", fg="yellow")
-    click.secho("Waiting for MobileGestalt overwrite to complete...", fg="yellow")
-    success_message = "/private/var/containers/Shared/SystemGroup/systemgroup.com.apple.mobilegestaltcache/Library/Caches/com.apple.MobileGestalt.plist) [Install-Mgr]: Marking download as [finished]"
+    click.secho("Waiting for overwrite to complete...", fg="yellow")
+    success_message = f"{mg_file}) [Install-Mgr]: Marking download as [finished]"
     for syslog_entry in OsTraceService(lockdown=service_provider).syslog():
         if (posixpath.basename(syslog_entry.filename) == 'bookassetd') and \
                 success_message in syslog_entry.message:
@@ -208,20 +218,6 @@ async def connection_context(udid):# Create a LockdownClient instance
         click.secho(f"Got device: {marketing_name} (iOS {device_version}, Build {device_build})", fg="blue")
         click.secho("Please keep your device unlocked during the process.", fg="blue")
         
-        # Validate MobileGestalt file
-        mg_contents = plistlib.load(open(mg_file, "rb"))
-        cache_extra = mg_contents["CacheExtra"]
-        if cache_extra is None:
-            click.secho("Error: Invalid com.apple.MobileGestalt.plist file", fg="red")
-            return
-        cache_build_version = mg_contents["CacheVersion"]
-        cache_product_type = cache_extra["0+nc/Udy4WNG8S+Q7a/s1A"] # ThinningProductType
-        if cache_build_version != device_build or cache_product_type != device_product_type:
-            click.secho("Error: It seems you are using MobileGestalt file for a different device", fg="red")
-            click.secho(f"Device Build: {device_build}, MobileGestalt Build: {cache_build_version}", fg="red")
-            click.secho(f"Device ProductType: {device_product_type}, MobileGestalt ProductType: {cache_product_type}", fg="red")
-            return
-        
         if device_version >= parse_version('17.0'):
             available_address = await create_tunnel(udid)
             if available_address:
@@ -241,7 +237,7 @@ async def connection_context(udid):# Create a LockdownClient instance
 
 if __name__ == "__main__":
     if len(sys.argv) != 3:
-        print("Usage: python run.py <udid> /path/to/com.apple.MobileGestalt.plist")
+        print("Usage: python run.py <udid> /path/to/input/file")
         exit(1)
         
     mg_file = sys.argv[2]
