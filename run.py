@@ -186,7 +186,7 @@ def main_callback(service_provider: LockdownClient, dvt: DvtSecureSocketProxySer
     
     click.secho("If this takes more than a minute please try again.", fg="yellow")
     click.secho("Waiting for file overwrite to complete...", fg="yellow")
-    success_message = f"{path}\") [Install-Mgr]: Marking download as [finished]"
+    success_message = path + ") [Install-Mgr]: Marking download as [finished]"
     for syslog_entry in OsTraceService(lockdown=service_provider).syslog():
         if (posixpath.basename(syslog_entry.filename) == 'bookassetd') and \
                 success_message in syslog_entry.message:
@@ -267,7 +267,7 @@ async def create_tunnel(udid):
     click.secho(f"address: {rsd_str.split(" ")[0]}", fg="bright_black")
     port = int(rsd_str.split(" ")[1])
     click.secho(f"port: {port}", fg="bright_black")
-    time.sleep(5)
+    time.sleep(2)
     return {"address": rsd_str.split(" ")[0], "port": int(rsd_str.split(" ")[1])}
 
 async def connection_context(service_provider):# Create a LockdownClient instance
